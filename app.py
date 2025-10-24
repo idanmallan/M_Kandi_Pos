@@ -50,11 +50,11 @@ def admin_login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        if username == "KANDI-TEXTILE" and password == "1234":  # change password
+        if username == "KANDI-TEXTILE" and password == "1234":
             session['admin_logged_in'] = True
             return redirect('/admin/dashboard')
         else:
-            return render_template('admin_login.html', error="Invalid credentials")
+            return render_template('admin/admin_login.html', error="Invalid credentials")
     return render_template('admin/admin_login.html')
 
 # Admin dashboard
@@ -69,14 +69,14 @@ def admin_dashboard():
 def admin_products():
     if not session.get('admin_logged_in'):
         return redirect('/admin/login')
-    return render_template('admin/products.html')  # your existing product page
+    return render_template('admin/products.html')
 
 # Admin report page
 @app.route('/admin/report')
 def admin_report():
     if not session.get('admin_logged_in'):
         return redirect('/admin/login')
-    return render_template('admin/daily_report.html')  # your existing report page
+    return render_template('admin/daily_report.html')
 
 # Admin logout
 @app.route('/admin/logout')
@@ -89,7 +89,7 @@ def admin_logout():
 def sales_page():
     return render_template('sales.html')
 
-# Add or update product (Admin)
+# Add or update product
 @app.route('/admin/add_product', methods=['POST'])
 def add_or_update_product():
     data = request.json
@@ -106,7 +106,7 @@ def add_or_update_product():
         conn.commit()
     return jsonify({"message": "Product added/updated successfully!"})
 
-# Search product for sale
+# Search product
 @app.route('/search_product')
 def search_product():
     query = request.args.get('q', '').lower()
@@ -168,7 +168,7 @@ def view_debts():
         results = cur.fetchall()
     return render_template('debts.html', debts=results)
 
-# Daily sales report page
+# Daily report
 @app.route('/daily_report')
 def daily_report_page():
     today = datetime.now().strftime("%Y-%m-%d")
@@ -179,9 +179,9 @@ def daily_report_page():
     total_sales = totals[0] or 0
     total_cash = totals[1] or 0
     total_debts = totals[2] or 0
-    return render_template('daily_report.html', total_sales=total_sales, total_cash=total_cash, total_debts=total_debts)
+    return render_template('admin/daily_report.html', total_sales=total_sales, total_cash=total_cash, total_debts=total_debts)
 
 # ---------- RUN SERVER ----------
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))  # Render sets PORT environment variable
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)

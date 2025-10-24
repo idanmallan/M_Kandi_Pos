@@ -4,9 +4,14 @@
 
 <input type="text" id="searchItem" placeholder="Search product by name">
 <div id="suggestions"></div>
+
 <input type="number" id="quantity" placeholder="Quantity">
 <input type="number" id="discount" placeholder="Discount (₦)">
+<h3>Total: ₦<span id="total">0.00</span></h3>
+
 <input type="number" id="payment" placeholder="Payment (₦)">
+<h3>Balance: ₦<span id="balance">0.00</span></h3>
+
 <button onclick="recordSale()">Record Sale</button>
 
 <div id="saleMessage"></div>
@@ -17,6 +22,7 @@
 
 <script>
 const suggestionsBox = document.getElementById('suggestions');
+let currentPrice = 0;
 
 document.getElementById('searchItem').addEventListener('input', async function() {
     const query = this.value;
@@ -25,12 +31,15 @@ document.getElementById('searchItem').addEventListener('input', async function()
     const res = await fetch(`/search_product?q=${query}`);
     const products = await res.json();
     suggestionsBox.innerHTML = '';
+
     products.forEach(p => {
         const div = document.createElement('div');
         div.className = 'suggestion-item';
         div.textContent = p[0] + " - ₦" + p[1];
         div.onclick = () => { 
             document.getElementById('searchItem').value = p[0]; 
+            currentPrice = p[1];
+            updateTotal();
             suggestionsBox.style.display = 'none';
         };
         suggestionsBox.appendChild(div);
@@ -38,28 +47,47 @@ document.getElementById('searchItem').addEventListener('input', async function()
     suggestionsBox.style.display = 'block';
 });
 
+document.getElementById('quantity').addEventListener('input', updateTotal);
+document.getElementById('discount').addEventListener('input', updateTotal);
+document.getElementById('payment').addEventListener('input', updateBalance);
+
+function updateTotal() {
+    const qty = parseFloat(document.getElementById('quantity').value) || 0;
+    const discount = parseFloat(document.getElementById('discount').value) || 0;
+    const total = (currentPrice * qty) - discount;
+    document.getElementById('total').textContent = total.toFixed(2);
+    updateBalance();
+}
+
+function updateBalance() {
+    const total = parseFloat(document.getElementById('total').textContent) || 0;
+    const payment = parseFloat(document.getElementById('payment').value) || 0;
+    const balance = total - payment;
+    document.getElementById('balance').textContent = balance.toFixed(2);
+}
+
 async function recordSale() {
     const itemName = document.getElementById('searchItem').value;
     const quantity = parseInt(document.getElementById('quantity').value);
     const discount = parseFloat(document.getElementById('discount').value) || 0;
     const payment = parseFloat(document.getElementById('payment').value) || 0;
+    const total = parseFloat(document.getElementById('total').textContent);
+    const balance = parseFloat(document.getElementById('balance').textContent);
 
-    const res = await fetch(`/search_product?q=${itemName}`);
-    const products = await res.json();
-    if(!products.length) { 
-        document.getElementById('saleMessage').textContent = "Product not found!"; 
-        return; 
+    if (!itemName || !quantity) {
+        document.getElementById('saleMessage').textContent = "Please select a product and enter quantity!";
+        return;
     }
-    const price = products[0][1];
 
     const saleRes = await fetch('/record_sale', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
             item_name: itemName,
-            price: price,
+            price: currentPrice,
             quantity: quantity,
             discount: discount,
+            total: total,
             payment: payment
         })
     });
@@ -70,10 +98,12 @@ async function recordSale() {
 M KANDI TEXTILE - QUALITY FABRICS AND MATERIALS
 -----------------------------------------------
 Item: ${itemName}
-Price: ₦${price}
+Price: ₦${currentPrice}
 Quantity: ${quantity}
 Discount: ₦${discount}
+Total: ₦${total}
 Payment: ₦${payment}
+Balance: ₦${balance}
 -----------------------------------------------
 Thank you for your purchase!
 `;
