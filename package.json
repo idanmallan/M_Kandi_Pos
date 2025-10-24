@@ -1,0 +1,17 @@
+{
+  "name": "m_kandi_pos",
+  "version": "1.0.0",
+  "description": "POS system for M Kandi Textile",
+  "main": "app.py",
+  "scripts": {
+    "gulp": "gulp"
+  },
+  "devDependencies": {
+    "gulp": "^4.0.2"
+  },
+  "dependencies": {
+    "swiper": "^11.0.0"
+  },
+  "author": "Ibrahim Bashir",
+  "license": "MIT"
+}

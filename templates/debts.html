@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Outstanding Debts</h2>
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Item</th>
+            <th>Total (₦)</th>
+            <th>Payment (₦)</th>
+            <th>Balance (₦)</th>
+            <th>Date</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for debt in debts %}
+        <tr>
+            <td>{{ debt[0] }}</td>
+            <td>{{ debt[1] }}</td>
+            <td>{{ debt[2] }}</td>
+            <td>{{ debt[3] }}</td>
+            <td>{{ debt[4] }}</td>
+            <td>{{ debt[5] }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

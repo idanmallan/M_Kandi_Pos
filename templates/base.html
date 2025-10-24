@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M KANDI TEXTILE POS</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation Bar -->
+        <div class="nav-bar">
+            <a href="/sales">Sales</a>
+            <a href="/products">Products</a>
+            <a href="/debts">Debts</a>
+            <a href="/daily_report">Daily Report</a>
+        </div>
+
+        <!-- Header with Logo -->
+        <div class="header">
+            <img src="/static/Logo.png" alt="Logo">
+            <h1>M KANDI TEXTILE - QUALITY FABRICS AND MATERIALS</h1>
+        </div>
+
+        <!-- Page Content -->
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+</body>
+</html>

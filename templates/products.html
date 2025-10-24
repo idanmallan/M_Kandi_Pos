@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Product</h2>
+
+<form id="productForm">
+<input type="text" id="prodName" placeholder="Product Name">
+<input type="number" id="prodPrice" placeholder="Price (₦)">
+<input type="number" id="prodQty" placeholder="Quantity">
+<button onclick="addProduct()">Add / Update Product</button>
+<div id="prodMessage"></div>
+</form>
+{% endblock %}
+
+<script>
+async function addProduct(){
+    const data = {
+        name: document.getElementById('prodName').value,
+        price: document.getElementById('prodPrice').value,
+        quantity: document.getElementById('prodQty').value
+    };
+
+    const res = await fetch('/add_product', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+    document.getElementById('prodMessage').textContent = result.message;
+}
+</script>
