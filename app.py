@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect
 import sqlite3
 import os
 from datetime import datetime
 
 app = Flask(__name__)
+app.secret_key = "Kandi@1572"
 
 DB_NAME = "pos.db"
 RECEIPT_FOLDER = "receipts"
@@ -43,18 +44,53 @@ init_db()
 def home_page():
     return render_template('sales.html')
 
+# Admin login
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if username == "KANDI-TEXTILE" and password == "1234":  # change password
+            session['admin_logged_in'] = True
+            return redirect('/admin/dashboard')
+        else:
+            return render_template('admin_login.html', error="Invalid credentials")
+    return render_template('admin/admin_login.html')
+
+# Admin dashboard
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if not session.get('admin_logged_in'):
+        return redirect('/admin/login')
+    return render_template('admin/admin_dashboard.html')
+
+# Admin products page
+@app.route('/admin/products')
+def admin_products():
+    if not session.get('admin_logged_in'):
+        return redirect('/admin/login')
+    return render_template('admin/products.html')  # your existing product page
+
+# Admin report page
+@app.route('/admin/report')
+def admin_report():
+    if not session.get('admin_logged_in'):
+        return redirect('/admin/login')
+    return render_template('admin/daily_report.html')  # your existing report page
+
+# Admin logout
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('admin_logged_in', None)
+    return redirect('/')
+
 # Sales page
 @app.route('/sales')
 def sales_page():
     return render_template('sales.html')
 
-# Product management page
-@app.route('/products')
-def products_page():
-    return render_template('products.html')
-
-# Add or update product
-@app.route('/add_product', methods=['POST'])
+# Add or update product (Admin)
+@app.route('/admin/add_product', methods=['POST'])
 def add_or_update_product():
     data = request.json
     name = data['name']
@@ -146,8 +182,6 @@ def daily_report_page():
     return render_template('daily_report.html', total_sales=total_sales, total_cash=total_cash, total_debts=total_debts)
 
 # ---------- RUN SERVER ----------
-import os
-
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))  # Render sets PORT environment variable
     app.run(host="0.0.0.0", port=port, debug=True)

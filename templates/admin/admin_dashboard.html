@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Admin Dashboard</h2>
+
+<div class="admin-links">
+    <a href="/admin/products">Manage Products</a>
+    <a href="/admin/report">View Daily Report</a>
+    <a href="/admin/logout">Logout</a>
+</div>
+
+<style>
+.admin-links {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.admin-links a {
+    text-decoration: none;
+    font-weight: 600;
+    padding: 10px 15px;
+    border-radius: 10px;
+    background-color: #3b82f6;
+    color: white;
+    transition: 0.3s;
+    text-align: center;
+}
+
+.admin-links a:hover {
+    background-color: #2563eb;
+}
+</style>
+{% endblock %}
