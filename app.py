@@ -146,5 +146,8 @@ def daily_report_page():
     return render_template('daily_report.html', total_sales=total_sales, total_cash=total_cash, total_debts=total_debts)
 
 # ---------- RUN SERVER ----------
+import os
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))  # Render sets PORT environment variable
+    app.run(host="0.0.0.0", port=port, debug=True)
