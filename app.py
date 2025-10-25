@@ -142,7 +142,8 @@ def search_product():
 @app.route('/record_sale', methods=['POST'])
 def record_sale():
     data = request.json
-    print("Data received:", data) # Debug
+    print("Data received:", data)
+
     item_name = data['item_name']
     price = float(data['price'])
     quantity = int(data['quantity'])
@@ -160,14 +161,10 @@ def record_sale():
             (item_name, price, quantity, discount, total, payment, balance, date)
         )
         conn.commit()
-        
-         # Debug
         cur.execute("SELECT * FROM sales WHERE item_name=?", (item_name,))
         print("Inserted row:", cur.fetchall())
 
-    return jsonify({"message": "Sale recorded successfully!"}) 
-
-    # Save receipt to file
+    # Save receipt to text file
     receipt_text = f"""
 M KANDI TEXTILE - QUALITY FABRICS AND MATERIALS
 -----------------------------------------------
@@ -186,7 +183,14 @@ Thank you for your purchase!
     with open(filename, 'w', encoding='utf-8') as f:
         f.write(receipt_text)
 
-    return jsonify({"message": "Sale recorded successfully!", "receipt_file": filename})
+    # Optional: print directly to XPrinter
+    printer_name = "XPrinter"  # Change this to your printer name from Windows Printer List
+    try:
+        print_raw_to_windows_printer(printer_name, receipt_text.encode('utf-8'))
+    except Exception as e:
+        print("Printer error:", e)
+
+    return jsonify({"message": "Sale recorded and receipt printed successfully!"})
 
 # Debts page
 @app.route('/debts')
@@ -196,6 +200,19 @@ def view_debts():
         cur.execute("SELECT id, item_name, total, payment, balance, date FROM sales WHERE balance > 0")
         results = cur.fetchall()
     return render_template('debts.html', debts=results)
+
+# Delete a debt (mark it as paid / remove from debt list)
+@app.route('/delete_debt/<int:debt_id>', methods=['POST'])
+def delete_debt(debt_id):
+    try:
+        with sqlite3.connect(DB_NAME) as conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM sales WHERE id = ?", (debt_id,))
+            conn.commit()
+        return jsonify({"message": "Debt deleted successfully!"})
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
+
 
 # Daily report
 @app.route('/daily_report')
@@ -209,6 +226,24 @@ def daily_report_page():
     total_cash = totals[1] or 0
     total_debts = totals[2] or 0
     return render_template('admin/daily_report.html', total_sales=total_sales, total_cash=total_cash, total_debts=total_debts)
+
+import win32print
+import win32con
+
+def print_raw_to_windows_printer(printer_name, bytes_to_print):
+    hPrinter = win32print.OpenPrinter(printer_name)
+    try:
+        # DOC_INFO_1: ("Name", None, "RAW")
+        hJob = win32print.StartDocPrinter(hPrinter, 1, ("Receipt", None, "RAW"))
+        try:
+            win32print.StartPagePrinter(hPrinter)
+            win32print.WritePrinter(hPrinter, bytes_to_print)
+            win32print.EndPagePrinter(hPrinter)
+        finally:
+            win32print.EndDocPrinter(hPrinter)
+    finally:
+        win32print.ClosePrinter(hPrinter)
+
 
 # ---------- RUN SERVER ----------
 if __name__ == '__main__':

@@ -13,41 +13,43 @@
 <h3>Balance: ₦<span id="balance">0.00</span></h3>
 
 <button onclick="recordSale()">Record Sale</button>
-
 <div id="saleMessage"></div>
 
-<div id="printPreview">
-    <div id="receiptContent"></div>
+<!-- Receipt Preview -->
+<div id="printPreview" style="margin-top: 15px;">
+  <div id="receiptContent" class="receipt-card"></div>
 </div>
 
-<!--print button-->
-<button id ="printreceipt" onclick="printReceipt()" style="margin-top:10px">print Receipt</button>
+<div style="display:flex; gap:10px; margin-top:10px;">
+  <button id="printReceipt" type="button" onclick="printReceipt()">🖨 Print Receipt</button>
+  <button id="saveReceiptFile" type="button" onclick="downloadReceipt()">💾 Save Copy</button>
+</div>
 
 <script>
-const suggestionsBox = document.getElementById('suggestions');
 let currentPrice = 0;
+const suggestionsBox = document.getElementById('suggestions');
 
 document.getElementById('searchItem').addEventListener('input', async function() {
-    const query = this.value;
-    if(!query) { suggestionsBox.style.display = 'none'; return; }
+  const query = this.value;
+  if (!query) { suggestionsBox.style.display = 'none'; return; }
 
-    const res = await fetch(`/search_product?q=${query}`);
-    const products = await res.json();
-    suggestionsBox.innerHTML = '';
+  const res = await fetch(`/search_product?q=${query}`);
+  const products = await res.json();
+  suggestionsBox.innerHTML = '';
 
-    products.forEach(p => {
-        const div = document.createElement('div');
-        div.className = 'suggestion-item';
-        div.textContent = p[0] + " - ₦" + p[1];
-        div.onclick = () => { 
-            document.getElementById('searchItem').value = p[0]; 
-            currentPrice = p[1];
-            updateTotal();
-            suggestionsBox.style.display = 'none';
-        };
-        suggestionsBox.appendChild(div);
-    });
-    suggestionsBox.style.display = 'block';
+  products.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'suggestion-item';
+    div.textContent = p[0] + " - ₦" + p[1];
+    div.onclick = () => {
+      document.getElementById('searchItem').value = p[0];
+      currentPrice = p[1];
+      updateTotal();
+      suggestionsBox.style.display = 'none';
+    };
+    suggestionsBox.appendChild(div);
+  });
+  suggestionsBox.style.display = 'block';
 });
 
 document.getElementById('quantity').addEventListener('input', updateTotal);
@@ -55,69 +57,107 @@ document.getElementById('discount').addEventListener('input', updateTotal);
 document.getElementById('payment').addEventListener('input', updateBalance);
 
 function updateTotal() {
-    const qty = parseFloat(document.getElementById('quantity').value) || 0;
-    const discount = parseFloat(document.getElementById('discount').value) || 0;
-    const total = (currentPrice * qty) - discount;
-    document.getElementById('total').textContent = total.toFixed(2);
-    updateBalance();
+  const qty = parseFloat(document.getElementById('quantity').value) || 0;
+  const discount = parseFloat(document.getElementById('discount').value) || 0;
+  const total = (currentPrice * qty) - discount;
+  document.getElementById('total').textContent = total.toFixed(2);
+  updateBalance();
 }
 
 function updateBalance() {
-    const total = parseFloat(document.getElementById('total').textContent) || 0;
-    const payment = parseFloat(document.getElementById('payment').value) || 0;
-    const balance = total - payment;
-    document.getElementById('balance').textContent = balance.toFixed(2);
+  const total = parseFloat(document.getElementById('total').textContent) || 0;
+  const payment = parseFloat(document.getElementById('payment').value) || 0;
+  const balance = total - payment;
+  document.getElementById('balance').textContent = balance.toFixed(2);
 }
 
 async function recordSale() {
-    const itemName = document.getElementById('searchItem').value;
-    const quantity = parseInt(document.getElementById('quantity').value);
-    const discount = parseFloat(document.getElementById('discount').value) || 0;
-    const payment = parseFloat(document.getElementById('payment').value) || 0;
-    const total = parseFloat(document.getElementById('total').textContent);
-    const balance = parseFloat(document.getElementById('balance').textContent);
+  const itemName = document.getElementById('searchItem').value;
+  const quantity = parseInt(document.getElementById('quantity').value);
+  const discount = parseFloat(document.getElementById('discount').value) || 0;
+  const payment = parseFloat(document.getElementById('payment').value) || 0;
+  const total = parseFloat(document.getElementById('total').textContent);
+  const balance = parseFloat(document.getElementById('balance').textContent);
 
-    if (!itemName || !quantity) {
-        document.getElementById('saleMessage').textContent = "Please select a product and enter quantity!";
-        return;
-    }
+  if (!itemName || !quantity) {
+    document.getElementById('saleMessage').textContent = "Please select a product and enter quantity!";
+    return;
+  }
 
-    const saleRes = await fetch('/record_sale', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-            item_name: itemName,
-            price: parseFloat(currentPrice),
-            quantity: quantity,
-            discount: discount,
-            total: total,
-            payment: payment
-        })
-    });
+  const saleRes = await fetch('/record_sale', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      item_name: itemName,
+      price: parseFloat(currentPrice),
+      quantity: quantity,
+      discount: discount,
+      total: total,
+      payment: payment
+    })
+  });
 
-    const result = await saleRes.json();
-    document.getElementById('saleMessage').textContent = result.message;
-    document.getElementById('receiptContent').textContent = `
-M KANDI TEXTILE - QUALITY FABRICS AND MATERIALS
------------------------------------------------
-Item: ${itemName}
-Price: parsefloat(currentPrice)
-Quantity: ${quantity}
-Discount: ₦${discount}
-Total: ₦${total}
-Payment: ₦${payment}
-Balance: ₦${balance}
------------------------------------------------
-Thank you for your purchase!
-`;
+  const result = await saleRes.json();
+  document.getElementById('saleMessage').textContent = result.message;
+
+  // Build and display receipt
+  const receiptHtml = buildReceiptHtml({
+    date: new Date().toLocaleString(),
+    item: itemName,
+    price: currentPrice,
+    qty: quantity,
+    discount: discount,
+    total: total,
+    payment: payment,
+    balance: balance
+  });
+  document.getElementById('receiptContent').innerHTML = receiptHtml;
+}
+
+function buildReceiptHtml(data) {
+  return `
+  <div style="width:280px; font-family: monospace; padding:10px;">
+    <div style="text-align:center; margin-bottom:6px;">
+      <strong style="font-size:14px;">M KANDI TEXTILE</strong><br>
+      <span style="font-size:11px;">QUALITY FABRICS AND MATERIALS</span>
+    </div>
+    <hr>
+    <div style="font-size:12px;">
+      Date: ${data.date}<br>
+      Item: ${data.item}<br>
+      Price: ₦${data.price}<br>
+      Quantity: ${data.qty}<br>
+      Discount: ₦${data.discount}<br>
+      ----------------------------<br>
+      Total: ₦${data.total}<br>
+      Payment: ₦${data.payment}<br>
+      Balance: ₦${data.balance}<br>
+      ----------------------------<br>
+      Thank you for your purchase!
+    </div>
+  </div>`;
+}
 
 function printReceipt() {
-    const printContents = document.getElementById('receiptContent').innerHTML;
-    const originalContents = document.body.innerHTML;
+  const printWindow = window.open('', 'PRINT', 'height=600,width=400');
+  printWindow.document.write('<html><head><title>Receipt</title></head><body>');
+  printWindow.document.write(document.getElementById('receiptContent').innerHTML);
+  printWindow.document.write('</body></html>');
+  printWindow.document.close();
+  printWindow.print();
+}
 
-    document.body.innerHTML = printContents;
-    window.print();
-    document.body.innerHTML = originalContents;}
+function downloadReceipt() {
+  const txt = document.getElementById('receiptContent').innerText;
+  const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `receipt_${new Date().toISOString().replace(/[:.]/g,'')}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 </script>
 {% endblock %}

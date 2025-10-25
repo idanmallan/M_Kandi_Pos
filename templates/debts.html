@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+
 {% block content %}
 <h2>Outstanding Debts</h2>
-<table>
+<table id="debts-table">
     <thead>
         <tr>
             <th>ID</th>
@@ -10,19 +11,64 @@
             <th>Payment (₦)</th>
             <th>Balance (₦)</th>
             <th>Date</th>
+            <th>Action</th>
         </tr>
     </thead>
     <tbody>
         {% for debt in debts %}
-        <tr>
+        <tr id="debt-row-{{ debt[0] }}" class="{% if debt[4]|float > 0 %}highlight-debt{% endif %}">
             <td>{{ debt[0] }}</td>
             <td>{{ debt[1] }}</td>
             <td>{{ debt[2] }}</td>
             <td>{{ debt[3] }}</td>
             <td>{{ debt[4] }}</td>
             <td>{{ debt[5] }}</td>
+            <td>
+                <button class="delete-btn" data-id="{{ debt[0] }}">Delete</button>
+            </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+
+
+<style>
+/* ...your CSS from previous version... */
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Attach click listeners after DOM is loaded
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const debtId = this.dataset.id;
+            if (!confirm("Mark this debt as paid and remove it?")) return;
+
+            try {
+                const res = await fetch(`/delete_debt/${debtId}`, {
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await res.json();
+
+                if (res.ok) {
+                    const row = document.getElementById(`debt-row-${debtId}`);
+                    if (row) row.remove();
+                    alert(result.message);
+                } else {
+                    alert("Failed to delete debt: " + result.message);
+                }
+            } catch (err) {
+                alert("Error: " + err);
+            }
+        });
+    });
+
+    // Optional: highlight very high balances
+    document.querySelectorAll('tbody tr.highlight-debt').forEach(row => {
+        const balance = parseFloat(row.cells[4].innerText);
+        if (balance > 10000) row.classList.add('high-balance');
+    });
+});
+</script>
 {% endblock %}
