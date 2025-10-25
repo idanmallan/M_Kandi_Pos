@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect
 import sqlite3
 import os
 from datetime import datetime
+import platform
 
 app = Flask(__name__)
 app.secret_key = "Kandi@1572"
@@ -38,14 +39,36 @@ def init_db():
 
 init_db()
 
-# ---------- ROUTES ----------
+# ---------- WINDOWS PRINTING ----------
+IS_WINDOWS = platform.system() == "Windows"
 
-# Home page redirects to sales
+if IS_WINDOWS:
+    import win32print
+    import win32con
+
+    def print_raw_to_windows_printer(printer_name, bytes_to_print):
+        hPrinter = win32print.OpenPrinter(printer_name)
+        try:
+            hJob = win32print.StartDocPrinter(hPrinter, 1, ("Receipt", None, "RAW"))
+            try:
+                win32print.StartPagePrinter(hPrinter)
+                win32print.WritePrinter(hPrinter, bytes_to_print)
+                win32print.EndPagePrinter(hPrinter)
+            finally:
+                win32print.EndDocPrinter(hPrinter)
+        finally:
+            win32print.ClosePrinter(hPrinter)
+else:
+    # Dummy function for Linux deployment
+    def print_raw_to_windows_printer(printer_name, bytes_to_print):
+        print("Printing skipped: Not running on Windows")
+
+
+# ---------- ROUTES ----------
 @app.route('/')
 def home_page():
     return render_template('sales.html')
 
-# Admin login
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
@@ -58,65 +81,53 @@ def admin_login():
             return render_template('admin/admin_login.html', error="Invalid credentials")
     return render_template('admin/admin_login.html')
 
-# Admin dashboard
 @app.route('/admin/dashboard')
 def admin_dashboard():
     if not session.get('admin_logged_in'):
         return redirect('/admin/login')
     return render_template('admin/admin_dashboard.html')
 
-# Admin products page
 @app.route('/admin/products')
 def admin_products():
     if not session.get('admin_logged_in'):
         return redirect('/admin/login')
     return render_template('admin/products.html')
 
-# Delete product (Admin)
 @app.route('/admin/delete_product', methods=['POST'])
 def delete_product():
     data = request.json
     name = data.get('name', '').strip()
-
     if not name:
         return jsonify({"message": "Invalid product name!"})
-
     with sqlite3.connect(DB_NAME) as conn:
         cur = conn.cursor()
         cur.execute("DELETE FROM products WHERE name=?", (name,))
         conn.commit()
-
     return jsonify({"message": f"Product '{name}' deleted successfully!"})
 
-# Admin report page
 @app.route('/admin/report')
 def admin_report():
     if not session.get('admin_logged_in'):
         return redirect('/admin/login')
     return render_template('admin/daily_report.html')
 
-# Admin logout
 @app.route('/admin/logout')
 def admin_logout():
     session.pop('admin_logged_in', None)
     return redirect('/')
 
-# Sales page
 @app.route('/sales')
 def sales_page():
     return render_template('sales.html')
 
-# Add or update product (Admin)
 @app.route('/admin/add_product', methods=['POST'])
 def add_or_update_product():
     data = request.json
     name = data['name'].strip()
     price = float(data['price'])
     quantity = int(data['quantity'])
-
     if not name or price < 0 or quantity < 0:
         return jsonify({"message": "Please provide valid product details!"})
-
     with sqlite3.connect(DB_NAME) as conn:
         cur = conn.cursor()
         cur.execute(
@@ -125,10 +136,8 @@ def add_or_update_product():
             (name, price, quantity, price, quantity)
         )
         conn.commit()
-
     return jsonify({"message": f"Product '{name}' added/updated successfully!"})
 
-# Search product
 @app.route('/search_product')
 def search_product():
     query = request.args.get('q', '').strip().lower()
@@ -138,12 +147,9 @@ def search_product():
         results = cur.fetchall()
     return jsonify(results)
 
-# Record a sale
 @app.route('/record_sale', methods=['POST'])
 def record_sale():
     data = request.json
-    print("Data received:", data)
-
     item_name = data['item_name']
     price = float(data['price'])
     quantity = int(data['quantity'])
@@ -161,10 +167,8 @@ def record_sale():
             (item_name, price, quantity, discount, total, payment, balance, date)
         )
         conn.commit()
-        cur.execute("SELECT * FROM sales WHERE item_name=?", (item_name,))
-        print("Inserted row:", cur.fetchall())
 
-    # Save receipt to text file
+    # Save receipt
     receipt_text = f"""
 M KANDI TEXTILE - QUALITY FABRICS AND MATERIALS
 -----------------------------------------------
@@ -183,14 +187,15 @@ Thank you for your purchase!
     with open(filename, 'w', encoding='utf-8') as f:
         f.write(receipt_text)
 
-    # Optional: print directly to XPrinter
-    printer_name = "XPrinter"  # Change this to your printer name from Windows Printer List
-    try:
-        print_raw_to_windows_printer(printer_name, receipt_text.encode('utf-8'))
-    except Exception as e:
-        print("Printer error:", e)
+    # Only print on Windows
+    if IS_WINDOWS:
+        try:
+            printer_name = "XPrinter"  # Change to your printer name
+            print_raw_to_windows_printer(printer_name, receipt_text.encode('utf-8'))
+        except Exception as e:
+            print("Printer error:", e)
 
-    return jsonify({"message": "Sale recorded and receipt printed successfully!"})
+    return jsonify({"message": "Sale recorded successfully!"})
 
 # Debts page
 @app.route('/debts')
@@ -201,7 +206,7 @@ def view_debts():
         results = cur.fetchall()
     return render_template('debts.html', debts=results)
 
-# Delete a debt (mark it as paid / remove from debt list)
+# Delete a debt
 @app.route('/delete_debt/<int:debt_id>', methods=['POST'])
 def delete_debt(debt_id):
     try:
@@ -212,7 +217,6 @@ def delete_debt(debt_id):
         return jsonify({"message": "Debt deleted successfully!"})
     except Exception as e:
         return jsonify({"message": str(e)}), 500
-
 
 # Daily report
 @app.route('/daily_report')
@@ -226,23 +230,6 @@ def daily_report_page():
     total_cash = totals[1] or 0
     total_debts = totals[2] or 0
     return render_template('admin/daily_report.html', total_sales=total_sales, total_cash=total_cash, total_debts=total_debts)
-
-import win32print
-import win32con
-
-def print_raw_to_windows_printer(printer_name, bytes_to_print):
-    hPrinter = win32print.OpenPrinter(printer_name)
-    try:
-        # DOC_INFO_1: ("Name", None, "RAW")
-        hJob = win32print.StartDocPrinter(hPrinter, 1, ("Receipt", None, "RAW"))
-        try:
-            win32print.StartPagePrinter(hPrinter)
-            win32print.WritePrinter(hPrinter, bytes_to_print)
-            win32print.EndPagePrinter(hPrinter)
-        finally:
-            win32print.EndDocPrinter(hPrinter)
-    finally:
-        win32print.ClosePrinter(hPrinter)
 
 
 # ---------- RUN SERVER ----------
