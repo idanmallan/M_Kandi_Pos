@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from flask import Flask, render_template, request, jsonify, session, redirect
 import sqlite3
 import os
@@ -71,6 +72,22 @@ def admin_products():
         return redirect('/admin/login')
     return render_template('admin/products.html')
 
+# Delete product (Admin)
+@app.route('/admin/delete_product', methods=['POST'])
+def delete_product():
+    data = request.json
+    name = data.get('name', '').strip()
+
+    if not name:
+        return jsonify({"message": "Invalid product name!"})
+
+    with sqlite3.connect(DB_NAME) as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM products WHERE name=?", (name,))
+        conn.commit()
+
+    return jsonify({"message": f"Product '{name}' deleted successfully!"})
+
 # Admin report page
 @app.route('/admin/report')
 def admin_report():
@@ -89,13 +106,17 @@ def admin_logout():
 def sales_page():
     return render_template('sales.html')
 
-# Add or update product
+# Add or update product (Admin)
 @app.route('/admin/add_product', methods=['POST'])
 def add_or_update_product():
     data = request.json
-    name = data['name']
+    name = data['name'].strip()
     price = float(data['price'])
     quantity = int(data['quantity'])
+
+    if not name or price < 0 or quantity < 0:
+        return jsonify({"message": "Please provide valid product details!"})
+
     with sqlite3.connect(DB_NAME) as conn:
         cur = conn.cursor()
         cur.execute(
@@ -104,12 +125,13 @@ def add_or_update_product():
             (name, price, quantity, price, quantity)
         )
         conn.commit()
-    return jsonify({"message": "Product added/updated successfully!"})
+
+    return jsonify({"message": f"Product '{name}' added/updated successfully!"})
 
 # Search product
 @app.route('/search_product')
 def search_product():
-    query = request.args.get('q', '').lower()
+    query = request.args.get('q', '').strip().lower()
     with sqlite3.connect(DB_NAME) as conn:
         cur = conn.cursor()
         cur.execute("SELECT name, price, quantity FROM products WHERE LOWER(name) LIKE ?", (f"%{query}%",))
@@ -120,6 +142,7 @@ def search_product():
 @app.route('/record_sale', methods=['POST'])
 def record_sale():
     data = request.json
+    print("Data received:", data) # Debug
     item_name = data['item_name']
     price = float(data['price'])
     quantity = int(data['quantity'])
@@ -137,6 +160,12 @@ def record_sale():
             (item_name, price, quantity, discount, total, payment, balance, date)
         )
         conn.commit()
+        
+         # Debug
+        cur.execute("SELECT * FROM sales WHERE item_name=?", (item_name,))
+        print("Inserted row:", cur.fetchall())
+
+    return jsonify({"message": "Sale recorded successfully!"}) 
 
     # Save receipt to file
     receipt_text = f"""

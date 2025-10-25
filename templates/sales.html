@@ -20,6 +20,9 @@
     <div id="receiptContent"></div>
 </div>
 
+<!--print button-->
+<button id ="printreceipt" onclick="printReceipt()" style="margin-top:10px">print Receipt</button>
+
 <script>
 const suggestionsBox = document.getElementById('suggestions');
 let currentPrice = 0;
@@ -84,7 +87,7 @@ async function recordSale() {
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
             item_name: itemName,
-            price: currentPrice,
+            price: parseFloat(currentPrice),
             quantity: quantity,
             discount: discount,
             total: total,
@@ -98,7 +101,7 @@ async function recordSale() {
 M KANDI TEXTILE - QUALITY FABRICS AND MATERIALS
 -----------------------------------------------
 Item: ${itemName}
-Price: ₦${currentPrice}
+Price: parsefloat(currentPrice)
 Quantity: ${quantity}
 Discount: ₦${discount}
 Total: ₦${total}
@@ -107,6 +110,14 @@ Balance: ₦${balance}
 -----------------------------------------------
 Thank you for your purchase!
 `;
+
+function printReceipt() {
+    const printContents = document.getElementById('receiptContent').innerHTML;
+    const originalContents = document.body.innerHTML;
+
+    document.body.innerHTML = printContents;
+    window.print();
+    document.body.innerHTML = originalContents;}
 }
 </script>
 {% endblock %}

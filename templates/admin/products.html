@@ -1,32 +1,125 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Product</h2>
+<div class="container">
+    <div class="header">
+        <img src="/static/Logo.png" alt="Logo">
+        <h1>Products Management</h1>
+    </div>
 
-<form id="productForm">
-<input type="text" id="prodName" placeholder="Product Name">
-<input type="number" id="prodPrice" placeholder="Price (₦)">
-<input type="number" id="prodQty" placeholder="Quantity">
-<button onclick="addProduct()">Add / Update Product</button>
-<div id="prodMessage"></div>
-</form>
-{% endblock %}
+    <h2>Add New Product</h2>
+    <form id="productForm" onsubmit="return false;" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <input type="text" id="prodName" placeholder="Product Name" style="flex:2;">
+        <input type="number" id="prodPrice" placeholder="Price (₦)" min="0" step="0.01" style="flex:1;">
+        <input type="number" id="prodQty" placeholder="Quantity" min="0" style="flex:1;">
+        <button id="addBtn" type="button" style="flex:1;">Add / Update</button>
+    </form>
+    <div id="prodMessage" style="margin-top:10px;color:green;"></div>
+
+    <h2>All Products</h2>
+    <table id="productTable">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Price (₦)</th>
+                <th>Qty</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Products will populate here -->
+        </tbody>
+    </table>
+</div>
 
 <script>
-async function addProduct(){
-    const data = {
-        name: document.getElementById('prodName').value,
-        price: document.getElementById('prodPrice').value,
-        quantity: document.getElementById('prodQty').value
-    };
+document.addEventListener("DOMContentLoaded", function() {
 
-    const res = await fetch('/add_product', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(data)
-    });
+    async function addProduct() {
+        const data = {
+            name: document.getElementById('prodName').value.trim(),
+            price: document.getElementById('prodPrice').value,
+            quantity: document.getElementById('prodQty').value
+        };
 
-    const result = await res.json();
-    document.getElementById('prodMessage').textContent = result.message;
-}
+        if (!data.name || !data.price || !data.quantity) {
+            document.getElementById('prodMessage').textContent = "Please fill all fields!";
+            return;
+        }
+
+        const res = await fetch('/admin/add_product', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+        document.getElementById('prodMessage').textContent = result.message;
+
+        document.getElementById('prodName').value = '';
+        document.getElementById('prodPrice').value = '';
+        document.getElementById('prodQty').value = '';
+
+        fetchProducts();
+    }
+
+    async function fetchProducts() {
+        const res = await fetch('/search_product?q=');
+        const products = await res.json();
+        const tbody = document.querySelector("#productTable tbody");
+        tbody.innerHTML = '';
+
+        products.forEach(p => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" value="${p[0]}" class="editName"></td>
+                <td><input type="number" value="${p[1]}" class="editPrice" min="0" step="0.01"></td>
+                <td><input type="number" value="${p[2]}" class="editQty" min="0"></td>
+                <td>
+                    <button class="updateBtn">Update</button>
+                    <button class="deleteBtn" style="background:#e74c3c;">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+
+            // Update product inline
+            tr.querySelector('.updateBtn').addEventListener('click', async () => {
+                const updatedData = {
+                    name: tr.querySelector('.editName').value.trim(),
+                    price: tr.querySelector('.editPrice').value,
+                    quantity: tr.querySelector('.editQty').value
+                };
+
+                const res = await fetch('/admin/add_product', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify(updatedData)
+                });
+                const result = await res.json();
+                document.getElementById('prodMessage').textContent = result.message;
+                fetchProducts();
+            });
+
+            // Delete product inline
+            tr.querySelector('.deleteBtn').addEventListener('click', async () => {
+                const name = tr.querySelector('.editName').value.trim();
+                if (confirm(`Delete "${name}"?`)) {
+                    const res = await fetch('/admin/delete_product', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({name})
+                    });
+                    const result = await res.json();
+                    document.getElementById('prodMessage').textContent = result.message;
+                    fetchProducts();
+                }
+            });
+        });
+    }
+
+    document.getElementById('addBtn').addEventListener('click', addProduct);
+
+    fetchProducts();
+});
 </script>
+{% endblock %}
